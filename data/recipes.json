@@ -1,0 +1,65 @@
+[
+    {
+        "title": "Omlet",
+        "ingredients": [
+            {
+                "name": "eggs",
+                "qty": "2"
+            },
+            {
+                "name": "olive oil",
+                "qty": "1 tbsp"
+            }
+        ],
+        "instructions": [
+            "break eggs",
+            "beat eggs",
+            "heat oil in pan",
+            "pour egg mixture into pan",
+            "flip over once egg starts to solidify"
+        ],
+        "tags": [
+            "breakfast",
+            "easy"
+        ],
+        "media": [
+            {
+                "anchor": "title",
+                "url": "https://hips.hearstapps.com/hmg-prod.s3.amazonaws.com/images/delish-how-to-make-an-omelette-horizontal-1542310072.png?crop=0.616xw:0.923xh;0.218xw,0.0281xh&resize=980:*"
+            }
+        ]
+    },
+    {
+        "title": "Ham and Cheese Sandwich",
+        "ingredients": [
+            {
+                "name": "bread",
+                "qty": "2 slices"
+            },
+            {
+                "name": "cheese",
+                "qty": "1 slice"
+            },
+            {
+                "name": "ham",
+                "qty": "1 slice"
+            }
+        ],
+        "instructions": [
+            "Place ham and cheese on a slice of bread",
+            "place other slice of bread on top of it"
+        ],
+        "tags": [
+            "snack",
+            "easy",
+            "meat",
+            "diary"
+        ],
+        "media": [
+            {
+                "anchor": "instructions-1",
+                "url": "https://upload.wikimedia.org/wikipedia/commons/a/a2/Two_slices_of_Kingsmill_bread.jpg"
+            }
+        ]
+    }
+]
