@@ -1,7 +1,8 @@
-use std::error::Error;
 use std::{env, fmt};
+use std::{error::Error, sync::Arc};
 use std::{fs, io};
 
+use actix_web::{middleware, web, HttpResponse};
 use futures::stream::StreamExt;
 use mongodb::{
     bson::{self, doc, to_document},
@@ -13,8 +14,10 @@ use serde_json;
 use tokio;
 
 use juniper::{
-    graphql_object, FieldError, FieldResult, GraphQLEnum, GraphQLInputObject, GraphQLObject,
-    IntoFieldError, ScalarValue,
+    graphql_object,
+    http::{graphiql::graphiql_source, GraphQLRequest},
+    EmptyMutation, EmptySubscription, FieldError, FieldResult, GraphQLEnum, GraphQLInputObject,
+    GraphQLObject, IntoFieldError, ScalarValue,
 };
 
 #[derive(Serialize, Deserialize, GraphQLObject)]
@@ -53,6 +56,7 @@ pub enum AppErrorType {
     #[allow(dead_code)]
     NotFoundError,
     InvalidField,
+    IOError,
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +101,16 @@ impl From<mongodb::error::Error> for AppError {
             message: None,
             cause: Some(error.to_string()),
             error_type: AppErrorType::DbError,
+        }
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(error: std::io::Error) -> Self {
+        AppError {
+            message: None,
+            cause: Some(error.to_string()),
+            error_type: AppErrorType::IOError,
         }
     }
 }
@@ -150,7 +164,12 @@ impl Query {
 
 // A root schema consists of a query and a mutation.
 // Request queries can be executed against a RootNode.
-type Schema = juniper::RootNode<'static, Query, juniper::EmptyMutation, juniper::EmptySubscription>;
+type Schema = juniper::RootNode<
+    'static,
+    Query,
+    juniper::EmptyMutation<Context>,
+    juniper::EmptySubscription<Context>,
+>;
 
 fn create_schema() -> Schema {
     Schema::new(
@@ -160,8 +179,63 @@ fn create_schema() -> Schema {
     )
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn graphql_playground() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(graphiql_source("/graphql", None))
+}
+
+async fn graphql(
+    schema: web::Data<Schema>,
+    data: web::Json<GraphQLRequest>,
+    collection: web::Data<Collection>,
+) -> HttpResponse {
+    let ctx = Context {
+        collection: collection.get_ref().to_owned(),
+    };
+    let res = data.execute(&schema, &ctx).await;
+
+    HttpResponse::Ok().json(res)
+}
+
+fn register(config: &mut web::ServiceConfig) {
+    config
+        .data(create_schema())
+        .route("/graphql", web::post().to(graphql))
+        .route("/graphiql", web::get().to(graphql_playground));
+}
+
+#[actix_web::main]
+async fn main() -> Result<(), AppError> {
+    //dotenv::dotenv().ok();
+    std::env::set_var("RUST_LOG", "actix_web=info,info");
+    env_logger::init();
+
+    // Load the MongoDB connection string from an environment variable:
+    let client_uri =
+        env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
+
+    // A Client is needed to connect to MongoDB:
+    let client = mongodb::Client::with_uri_str(client_uri.as_ref()).await?;
+
+    let database = client.database("recipedb");
+    let collection = database.collection("recipes");
+
+    actix_web::HttpServer::new(move || {
+        actix_web::App::new()
+            .data(collection.clone())
+            .wrap(middleware::Logger::default())
+            .configure(register)
+            .default_service(web::to(|| async { "404" }))
+    })
+    .bind("0.0.0.0:8080")?
+    .run()
+    .await
+    .map_err(AppError::from)
+}
+
+//#[tokio::main]
+async fn main2() -> Result<(), Box<dyn Error>> {
     // Load the MongoDB connection string from an environment variable:
     let client_uri =
         env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
@@ -199,6 +273,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     while let Some(doc) = cursor.next().await {
         println!("{}", doc?)
     }
-
+    let ctx = Context { collection };
+    let (q, _err) = juniper::execute(
+        "query {recipes {title}}",
+        None,
+        &create_schema(),
+        &juniper::Variables::new(),
+        &ctx,
+    )
+    .await
+    .unwrap();
+    println!("{}", q);
     Ok(())
 }
