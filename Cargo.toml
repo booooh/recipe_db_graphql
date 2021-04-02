@@ -1,5 +1,5 @@
 [package]
-name = "rust_quickstart"
+name = "recipe_db_graphql"
 version = "0.1.0"
 authors = ["aa026831"]
 edition = "2018"

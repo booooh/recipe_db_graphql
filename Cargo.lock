@@ -1988,6 +1988,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "recipe_db_graphql"
+version = "0.1.0"
+dependencies = [
+ "actix-cors",
+ "actix-web 4.0.0-beta.5",
+ "env_logger",
+ "futures",
+ "juniper",
+ "mongodb",
+ "serde",
+ "serde_json",
+ "tokio 1.4.0",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2072,21 +2087,6 @@ dependencies = [
  "untrusted",
  "web-sys",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "rust_quickstart"
-version = "0.1.0"
-dependencies = [
- "actix-cors",
- "actix-web 4.0.0-beta.5",
- "env_logger",
- "futures",
- "juniper",
- "mongodb",
- "serde",
- "serde_json",
- "tokio 1.4.0",
 ]
 
 [[package]]
