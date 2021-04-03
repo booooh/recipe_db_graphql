@@ -17,3 +17,11 @@ juniper = { git = "https://github.com/graphql-rust/juniper" }
 actix-web = "4.0.0-beta"
 actix-cors = "0.4.0"
 env_logger = "0.8"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "recipe_loader"
+path = "src/load_recipes.rs"
