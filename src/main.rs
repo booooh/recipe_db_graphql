@@ -129,13 +129,12 @@ mod recipe_schema {
         Collection,
     };
 
-    use crate::{error::AppError, recipe_model::Recipe};
+    use crate::{error::AppError, error::AppErrorType, recipe_model::Recipe};
+    use log::info;
 
     pub struct Context {
         pub collection: Collection,
     }
-
-    // Error type
 
     // To make our context usable by Juniper, we have to implement a marker trait.
     impl juniper::Context for Context {}
@@ -166,6 +165,28 @@ mod recipe_schema {
             }
             Ok(recipes)
         }
+
+        async fn recipe(context: &Context, title: String) -> Result<Recipe, AppError> {
+            info!("going to search for a recipe titled {}", title);
+            let res = context
+                .collection
+                .find_one(doc! { "title" : title}, None)
+                .await?;
+
+            if let Some(doc) = res {
+                let recipe: Recipe = bson::from_document(doc)?;
+                return Ok(recipe);
+            }
+
+            return Err(AppError {
+                message: Some("Recipe not found".into()),
+                cause: None,
+                error_type: AppErrorType::NotFoundError,
+            });
+        }
+
+        // Can add additional fields to a field query by adding the values as Option
+        // async fn recipe(context: &Context, title: String, ingredients: Option<Vec<String>>) -> Result<Recipe, AppError> {
     }
 
     // A root schema consists of a query and a mutation.

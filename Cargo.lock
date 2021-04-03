@@ -1996,6 +1996,7 @@ dependencies = [
  "env_logger",
  "futures",
  "juniper",
+ "log",
  "mongodb",
  "serde",
  "serde_json",
