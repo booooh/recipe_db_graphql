@@ -238,21 +238,12 @@ mod recipe_schema {
                 .collection
                 .insert_one(bson::ser::to_document(&new_recipe)?, None)
                 .await?;
-            info!("Called insert_one and got {:?}", res);
             let doc = context
                 .collection
                 .find_one(doc! {"_id" : res.inserted_id}, None)
                 .await?
                 .unwrap();
-            info!("looked it up in the DB and got {:?}", doc);
-            info!("going to try to create a recipe...");
             let recipe: Recipe = bson::from_document(doc)?;
-            info!("was able to create a recipe from it!");
-            let mut cursor = context.collection.find(None, None).await?;
-            while let Some(doc) = cursor.next().await {
-                info!("{}", doc?);
-            }
-
             Ok(recipe)
         }
     }
