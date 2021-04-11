@@ -6,7 +6,7 @@ use handlers::register;
 
 pub mod recipe_model {
 
-    use juniper::GraphQLObject;
+    use juniper::{GraphQLInputObject, GraphQLObject};
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, GraphQLObject)]
@@ -31,6 +31,30 @@ pub mod recipe_model {
         instructions: Vec<String>,
         tags: Vec<String>,
         media: Vec<MediaRef>,
+    }
+
+    #[derive(Serialize, Deserialize, GraphQLInputObject)]
+    #[graphql(description = "An ingredient that can be added to a recipe")]
+    struct NewIngredient {
+        name: String,
+        qty: String,
+    }
+    // There is also a custom derive for mapping GraphQL input objects.
+    #[derive(Serialize, Deserialize, GraphQLInputObject)]
+    #[graphql(description = "A new Recipe that can be added to the DB")]
+    pub(crate) struct NewRecipe {
+        title: String,
+        ingredients: Vec<NewIngredient>,
+        instructions: Vec<String>,
+        tags: Vec<String>,
+        media: Vec<NewMediaRef>,
+    }
+
+    #[derive(Serialize, Deserialize, GraphQLInputObject)]
+    #[graphql(description = "A reference to media content that can be added to a recipe")]
+    struct NewMediaRef {
+        anchor: String,
+        url: String,
     }
 }
 mod error {
@@ -85,7 +109,7 @@ mod error {
     }
 
     impl From<mongodb::error::Error> for AppError {
-        fn from(error: mongodb::error::Error) -> AppError {
+        fn from(error: mongodb::error::Error) -> Self {
             AppError {
                 message: None,
                 cause: Some(error.to_string()),
@@ -105,7 +129,17 @@ mod error {
     }
 
     impl From<bson::de::Error> for AppError {
-        fn from(error: bson::de::Error) -> AppError {
+        fn from(error: bson::de::Error) -> Self {
+            AppError {
+                message: None,
+                cause: Some(error.to_string()),
+                error_type: AppErrorType::DbError,
+            }
+        }
+    }
+
+    impl From<mongodb::bson::ser::Error> for AppError {
+        fn from(error: mongodb::bson::ser::Error) -> Self {
             AppError {
                 message: None,
                 cause: Some(error.to_string()),
@@ -122,6 +156,7 @@ mod error {
 }
 
 mod recipe_schema {
+
     use futures::stream::StreamExt;
     use juniper::graphql_object;
     use mongodb::{
@@ -129,7 +164,9 @@ mod recipe_schema {
         Collection,
     };
 
-    use crate::{error::AppError, error::AppErrorType, recipe_model::Recipe};
+    use crate::{
+        error::AppError, error::AppErrorType, recipe_model::NewRecipe, recipe_model::Recipe,
+    };
     use log::info;
 
     pub struct Context {
@@ -189,21 +226,44 @@ mod recipe_schema {
         // async fn recipe(context: &Context, title: String, ingredients: Option<Vec<String>>) -> Result<Recipe, AppError> {
     }
 
+    pub struct Mutation;
+
+    #[graphql_object(context = Context)]
+    impl Mutation {
+        async fn createRecipe(
+            context: &Context,
+            new_recipe: NewRecipe,
+        ) -> Result<Recipe, AppError> {
+            let res = context
+                .collection
+                .insert_one(bson::ser::to_document(&new_recipe)?, None)
+                .await?;
+            info!("Called insert_one and got {:?}", res);
+            let doc = context
+                .collection
+                .find_one(doc! {"_id" : res.inserted_id}, None)
+                .await?
+                .unwrap();
+            info!("looked it up in the DB and got {:?}", doc);
+            info!("going to try to create a recipe...");
+            let recipe: Recipe = bson::from_document(doc)?;
+            info!("was able to create a recipe from it!");
+            let mut cursor = context.collection.find(None, None).await?;
+            while let Some(doc) = cursor.next().await {
+                info!("{}", doc?);
+            }
+
+            Ok(recipe)
+        }
+    }
+
     // A root schema consists of a query and a mutation.
     // Request queries can be executed against a RootNode.
-    pub type Schema = juniper::RootNode<
-        'static,
-        Query,
-        juniper::EmptyMutation<Context>,
-        juniper::EmptySubscription<Context>,
-    >;
+    pub type Schema =
+        juniper::RootNode<'static, Query, Mutation, juniper::EmptySubscription<Context>>;
 
     pub fn create_schema() -> Schema {
-        Schema::new(
-            Query,
-            juniper::EmptyMutation::new(),
-            juniper::EmptySubscription::new(),
-        )
+        Schema::new(Query, Mutation, juniper::EmptySubscription::new())
     }
 }
 

@@ -14,5 +14,5 @@ cargo run --bin recipe_loader
 3. Run the actix-web server which exposes a graphql endpoint and a graphiql playground to execute queries
 ```bash
 export MONGODB_URI=mongodb://localhost:27017
-caro run --bin server
+cargo run --bin server
 ```
