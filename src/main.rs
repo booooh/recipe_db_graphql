@@ -7,6 +7,7 @@ use handlers::register;
 pub mod recipe_model {
 
     use juniper::{GraphQLInputObject, GraphQLObject};
+    use mongodb::bson::oid::ObjectId;
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, GraphQLObject)]
@@ -26,6 +27,8 @@ pub mod recipe_model {
     #[derive(Serialize, Deserialize, GraphQLObject)]
     #[graphql(description = "A recipe")]
     pub struct Recipe {
+        #[serde(rename = "_id")]
+        id: ObjectId,
         title: String,
         ingredients: Vec<Ingredient>,
         instructions: Vec<String>,
